@@ -26,6 +26,36 @@ The pipeline avoids provider credentials. Future parcel, tax-assessment, or list
 
 ## Run
 
+This project uses a `src/` package layout, so install it into your active
+Python environment before running the CLI from a checkout:
+
+```bash
+python -m pip install -e .
+```
+
+On Windows, from PowerShell, use the same interpreter you will use to run the
+commands, for example:
+
+```powershell
+py -m pip install -e .
+```
+
+If you prefer not to install the package, set `PYTHONPATH` for the current shell before using `python -m`:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m scb_lvt.cli fetch --manifest config/scb_baseline_tables.json
+```
+
+After installation, either invoke the console script:
+
+```bash
+scb-lvt fetch --manifest config/scb_baseline_tables.json
+scb-lvt build --target property_prices
+```
+
+or run the module explicitly:
+
 ```bash
 python -m scb_lvt.cli fetch --manifest config/scb_baseline_tables.json
 python -m scb_lvt.cli build --target property_prices
