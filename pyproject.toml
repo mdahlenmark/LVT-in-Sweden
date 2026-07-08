@@ -1,0 +1,16 @@
+[project]
+name = "lvt-in-sweden"
+version = "0.1.0"
+description = "No-key SCB open-data baseline for Swedish LVT modelling"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+scb-lvt = "scb_lvt.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

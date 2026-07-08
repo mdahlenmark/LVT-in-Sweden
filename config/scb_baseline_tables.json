@@ -1,0 +1,34 @@
+{
+  "api_base": "https://api.scb.se/OV0104/v1/doris/en/ssd",
+  "notes": "No-key SCB PxWeb baseline. Fill table paths with selected SCB tables from the PxWeb tree.",
+  "datasets": [
+    {
+      "name": "property_prices",
+      "role": "target",
+      "description": "Aggregate real-estate purchase prices or purchase-price coefficients by municipality/county.",
+      "required_dimensions": ["region", "time"],
+      "search_terms": ["Real estate prices", "purchase price", "K/T", "municipality"]
+    },
+    {
+      "name": "lagfart",
+      "role": "market_activity",
+      "description": "Title registrations / lagfart aggregate transaction counts or values by municipality/county.",
+      "required_dimensions": ["region", "time"],
+      "search_terms": ["title registrations", "lagfart", "real estate sales", "municipality"]
+    },
+    {
+      "name": "population",
+      "role": "demographic_control",
+      "description": "Population by municipality/county and year.",
+      "required_dimensions": ["region", "time"],
+      "search_terms": ["Population", "municipality", "year"]
+    },
+    {
+      "name": "income",
+      "role": "income_control",
+      "description": "Disposable/earned income by municipality/county and year.",
+      "required_dimensions": ["region", "time"],
+      "search_terms": ["income", "municipality", "year"]
+    }
+  ]
+}
