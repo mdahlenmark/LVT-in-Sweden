@@ -15,7 +15,14 @@ The pipeline avoids provider credentials. Future parcel, tax-assessment, or list
 
 ## Configure SCB tables
 
-`config/scb_baseline_tables.json` lists the required source roles and search terms. Add the current SCB table path for each dataset as `path` once selected from the SCB PxWeb tree, for example:
+`config/scb_baseline_tables.json` lists the required source roles and search terms. The `fetch` command now tries to select tables automatically from the SCB PxWeb tree when a dataset has no `path`:
+
+1. It starts at the configured `api_base` (`https://api.scb.se/OV0104/v1/doris/en/ssd`).
+2. It walks the PxWeb navigation tree. Folder nodes are opened recursively; table nodes are ranked against the dataset `search_terms`.
+3. If one table is clearly the best match, `fetch` prints `auto-selected <dataset>: <path>` and downloads it immediately.
+4. If several tables are tied, `fetch` prints candidate paths and skips that dataset so you can choose the intended table manually.
+
+To manually choose a table, browse the same tree in a browser or with the API: open `api_base`, click/open folders matching the dataset subject, and copy the slash-separated table path made from the node `id` values. Add that path to the dataset entry as `path`, for example:
 
 ```json
 {
@@ -23,6 +30,8 @@ The pipeline avoids provider credentials. Future parcel, tax-assessment, or list
   "path": "BE/BE0101/BE0101A/BefolkningNy"
 }
 ```
+
+Configured `path` values always win over automatic discovery, which makes future runs reproducible after you have selected the exact SCB tables.
 
 ## Run
 
