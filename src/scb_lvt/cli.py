@@ -6,19 +6,24 @@ from pathlib import Path
 
 from .baseline import fit_univariate_baseline, join_measures, normalize_measure_csv
 from .jsonstat import jsonstat_to_rows
-from .scb import ScbClient, load_manifest, save_json
+from .scb import ScbClient, load_manifest, save_json, select_table_path
 
 
 def cmd_fetch(args: argparse.Namespace) -> None:
     api_base, tables = load_manifest(args.manifest)
     client = ScbClient(api_base)
     for table in tables:
-        if not table.path:
-            print(f"skip {table.name}: no table path configured")
+        selected_path, candidates = select_table_path(client, table)
+        if not selected_path:
+            print(f"skip {table.name}: no unique SCB table path found")
+            for candidate in candidates:
+                print(f"  candidate score={candidate.score} path={candidate.path} text={candidate.text}")
             continue
-        meta = client.metadata(table.path)
+        if not table.path:
+            print(f"auto-selected {table.name}: {selected_path}")
+        meta = client.metadata(selected_path)
         save_json(Path(args.raw_dir) / f"{table.name}.metadata.json", meta)
-        payload = client.query_all(table.path, meta)
+        payload = client.query_all(selected_path, meta)
         save_json(Path(args.raw_dir) / f"{table.name}.json", payload)
         rows = jsonstat_to_rows(payload)
         out = Path(args.processed_dir) / f"{table.name}.csv"
