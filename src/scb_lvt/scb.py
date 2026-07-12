@@ -34,20 +34,22 @@ class ScbTableCandidate:
 class ScbClient:
     """Thin PxWeb v1 client that needs no API key."""
 
-    def __init__(self, api_base: str, pause_seconds: float = 0.4) -> None:
+    def __init__(
+        self,
+        api_base: str,
+        pause_seconds: float = 0.4,
+        max_retries: int = 3,
+        backoff_seconds: float = 1.0,
+    ) -> None:
         self.api_base = api_base.rstrip("/")
         self.pause_seconds = pause_seconds
+        self.max_retries = max(0, max_retries)
+        self.backoff_seconds = max(0.0, backoff_seconds)
 
     def get_json(self, path: str = "") -> Any:
         url = f"{self.api_base}/{path.strip('/')}" if path else self.api_base
         req = Request(url, headers={"User-Agent": "lvt-in-sweden/0.1"})
-        try:
-            with urlopen(req, timeout=45) as response:  # nosec B310: configured public SCB URL
-                return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError) as exc:
-            raise RuntimeError(f"SCB request failed for {url}: {exc}") from exc
-        finally:
-            time.sleep(self.pause_seconds)
+        return self._open_json(req, timeout=45, failure_label="SCB request")
 
     def post_json(self, path: str, payload: dict[str, Any]) -> Any:
         url = f"{self.api_base}/{path.strip('/')}"
@@ -58,13 +60,34 @@ class ScbClient:
             method="POST",
             headers={"Content-Type": "application/json", "User-Agent": "lvt-in-sweden/0.1"},
         )
-        try:
-            with urlopen(req, timeout=90) as response:  # nosec B310: configured public SCB URL
-                return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError) as exc:
-            raise RuntimeError(f"SCB query failed for {url}: {exc}") from exc
-        finally:
-            time.sleep(self.pause_seconds)
+        return self._open_json(req, timeout=90, failure_label="SCB query")
+
+    def _open_json(self, req: Request, timeout: int, failure_label: str) -> Any:
+        """Open a JSON request with retries for transient SCB/network failures."""
+        attempts = self.max_retries + 1
+        last_exc: BaseException | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                with urlopen(req, timeout=timeout) as response:  # nosec B310: configured public SCB URL
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                if exc.code < 500 or attempt == attempts:
+                    raise RuntimeError(f"{failure_label} failed for {req.full_url}: {exc}") from exc
+                last_exc = exc
+            except (ConnectionError, TimeoutError, URLError, OSError) as exc:
+                last_exc = exc
+                if attempt == attempts:
+                    raise RuntimeError(
+                        f"{failure_label} failed for {req.full_url} after {attempts} attempts: {exc}"
+                    ) from exc
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(f"{failure_label} returned invalid JSON for {req.full_url}: {exc}") from exc
+            finally:
+                time.sleep(self.pause_seconds)
+            retry_delay = self.backoff_seconds * (2 ** (attempt - 1))
+            if retry_delay > 0:
+                time.sleep(retry_delay)
+        raise RuntimeError(f"{failure_label} failed for {req.full_url}: {last_exc}")
 
     def metadata(self, table_path: str) -> dict[str, Any]:
         return self.get_json(table_path)

@@ -55,3 +55,46 @@ def test_select_table_path_keeps_ambiguous_matches_unselected():
 
     assert selected_path is None
     assert [candidate.path for candidate in candidates] == ["A", "B"]
+
+
+def test_get_json_retries_connection_reset(monkeypatch):
+    import scb_lvt.scb as scb
+
+    attempts = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def fake_urlopen(req, timeout):
+        attempts.append((req.full_url, timeout))
+        if len(attempts) == 1:
+            raise ConnectionResetError("forcibly closed by remote host")
+        return FakeResponse()
+
+    monkeypatch.setattr(scb, "urlopen", fake_urlopen)
+    monkeypatch.setattr(scb.time, "sleep", lambda seconds: None)
+
+    client = ScbClient("https://example.invalid", pause_seconds=0, max_retries=1, backoff_seconds=0)
+
+    assert client.get_json("path") == {"ok": True}
+    assert len(attempts) == 2
+
+
+def test_get_json_reports_exhausted_connection_reset(monkeypatch):
+    import pytest
+    import scb_lvt.scb as scb
+
+    monkeypatch.setattr(scb, "urlopen", lambda req, timeout: (_ for _ in ()).throw(ConnectionResetError("reset")))
+    monkeypatch.setattr(scb.time, "sleep", lambda seconds: None)
+
+    client = ScbClient("https://example.invalid", pause_seconds=0, max_retries=1, backoff_seconds=0)
+
+    with pytest.raises(RuntimeError, match="after 2 attempts"):
+        client.get_json("path")
