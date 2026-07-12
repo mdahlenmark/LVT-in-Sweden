@@ -11,7 +11,7 @@ from .scb import ScbClient, load_manifest, save_json, select_table_path
 
 def cmd_fetch(args: argparse.Namespace) -> None:
     api_base, tables = load_manifest(args.manifest)
-    client = ScbClient(api_base)
+    client = ScbClient(api_base, max_retries=args.retries, backoff_seconds=args.retry_backoff)
     for table in tables:
         selected_path, candidates = select_table_path(client, table)
         if not selected_path:
@@ -51,6 +51,8 @@ def main() -> None:
     fetch.add_argument("--manifest", default="config/scb_baseline_tables.json")
     fetch.add_argument("--raw-dir", default="data/raw/scb")
     fetch.add_argument("--processed-dir", default="data/processed")
+    fetch.add_argument("--retries", type=int, default=3, help="retry transient SCB/network failures this many times")
+    fetch.add_argument("--retry-backoff", type=float, default=1.0, help="initial retry backoff in seconds")
     fetch.set_defaults(func=cmd_fetch)
     build = sub.add_parser("build", help="normalize CSVs, join controls, and fit baseline")
     build.add_argument("--processed-dir", default="data/processed")
